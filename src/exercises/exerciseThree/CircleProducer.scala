@@ -1,8 +1,11 @@
 package exerciseThree
 
+import java.util.concurrent.TimeUnit
+
+import akka.actor._
+import akka.stream.actor._
 import video.Frame
-import akka.stream.actor.ActorProducer
-import akka.actor.ActorSystem
+import video.imageUtils.{CircleProperties, ImageUtils}
 
 // ------------
 // EXERCISE 3.1
@@ -16,13 +19,28 @@ import akka.actor.ActorSystem
 //      onNext(Frame ... )
 //
 // See video.imageUtils.ImageUtils.createBufferedImage
-class CircleProducer extends ActorProducer[Frame] {
+class CircleProducer extends ActorPublisher[Frame] {
 
   override def receive: Receive = {
 
-    case ActorProducer.Request(elements) => ???
+    case ActorPublisherMessage.Request(elements) =>
+      while (totalDemand > 0) {
+        val circleProperties = generateCircleProperties(80, 80)
+        val bufferedImage = video.imageUtils.ImageUtils.createBufferedImage(80, 80, circleProperties)
+        val frame = Frame(image = bufferedImage, timeStamp = 1L, timeUnit = TimeUnit.SECONDS)
 
-    case ActorProducer.Cancel => context stop self
+        onNext(frame)
+      }
+
+    case ActorPublisherMessage.Cancel =>
+      context stop self
+  }
+
+  def generateCircleProperties(screenWidth:Int, screenHeight:Int): CircleProperties = {
+    val width = ImageUtils.randWidth(screenWidth)
+    val height = ImageUtils.randHeight(screenHeight)
+    val randColor = ImageUtils.randColor
+    CircleProperties(width = width, height = height, color = randColor)
   }
 
 }
@@ -42,7 +60,9 @@ object CircleProducer {
     // Fill in the code necessary to construct a UI to consume and display the Frames produced
     // by the Circle producer.
 
-    // TODO - Your code here.
+    val display = video.display(system)
 
+    val circleProducer = system.actorOf(Props[CircleProducer], "circleProducer")
+    ActorPublisher(circleProducer).subscribe(display)
   }
 }

@@ -2,11 +2,8 @@ import java.awt.Color
 import java.awt.image.BufferedImage
 import java.io.File
 
-import akka.actor.{ActorSystem, ActorRefFactory}
-import org.reactivestreams.api.{Consumer, Producer}
-import video.imageUtils.ImageUtils
-
-import scala.collection.immutable
+import akka.actor.{ActorRefFactory, ActorSystem}
+import org.reactivestreams.{Publisher, Subscriber}
 
 /**
  * Helper methods for reactive streams workshop.
@@ -20,7 +17,7 @@ package object video {
    * @param system  The actor system used to run the Display.
    * @return   The consumer of frames we can use to render in Swing.
    */
-  def display(system: ActorSystem): Consumer[Frame] = Display.create(system)
+  def display(system: ActorSystem): Subscriber[Frame] = Display.create(system)
 
 
   /** Construct a swing UI with two pieces:
@@ -30,7 +27,7 @@ package object video {
     * @param system  The actor system used to run the UI.
     * @return  A tuple containing the Producer of UI events and the consumer of Frames.
     */
-  def displayWithControl(system: ActorSystem): (Producer[UIControl], Consumer[Frame]) =
+  def displayWithControl(system: ActorSystem): (Publisher[UIControl], Subscriber[Frame]) =
     Display.createPlayer(system)
 
 
@@ -41,7 +38,7 @@ package object video {
     * @param factory An actor factory we use to instantiate the underlying producer.
     * @return  A Producer of video frames.
     */
-  def readFFmpegFile(file: File, factory: ActorRefFactory): Producer[Frame] =
+  def readFFmpegFile(file: File, factory: ActorRefFactory): Publisher[Frame] =
     FFMpeg.readFile(file, factory)
 
 

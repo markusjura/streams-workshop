@@ -1,45 +1,154 @@
 package exerciseFive
 
-
 import java.io.File
 
-import akka.actor.{Props, ActorSystem}
-import akka.stream.actor.ActorProducer
-import akka.stream.scaladsl.Flow
-import akka.stream.{FlowMaterializer, MaterializerSettings}
-import org.reactivestreams.api.{Consumer, Producer}
-import video.{Frame, UIControl}
-
+import akka.actor.{ActorRef, Actor, ActorSystem, Props}
+import akka.stream.FlowMaterializer
+import akka.stream.actor._
+import org.reactivestreams._
+import video._
 
 object VideoPlayer {
 
-
   /**
    * run:
-   *   ./activator 'runMain exerciseFive.VideoPlayer'
+   * ./activator 'runMain exerciseFive.VideoPlayer'
    *
    */
   def main(args: Array[String]): Unit = {
     implicit val system = ActorSystem("video-player")
-    val settings = MaterializerSettings()
-    val materializer = FlowMaterializer(settings)
+    implicit val materializer = FlowMaterializer()
 
     // Here are the input + output streams for the player.
-    val (ui: Producer[UIControl], player: Consumer[Frame]) =
+    val (ui: Publisher[UIControl], player: Subscriber[Frame]) =
       video.Display.createPlayer(system)
 
     // here is the file to read.
     val videoFile = new File("goose.mp4")
 
-    // EXERCISE 5 - Create a set of actors which will:
-    // Consumer the `ui` event stream.
-    // 1. On Play, it will open the video file, if needed, and begin feeding Frame events to the player
-    // 2. On Pause, it will stop requesting more events from the file
-    // 3. On Stop, it will close the file.
+    val playEngineActor = system.actorOf(Props(new PlayerProcessorActor(videoFile)))
 
-    // Hint #1:  An actor can be both a consumer and a producer
-    // Hint #2: Actors can create child actors to coordinate work.
+    // hook the actor in as a subscriber of UIControl.
+    val playEngineSubscriber = ActorSubscriber[UIControl](playEngineActor)
+    ui.subscribe(playEngineSubscriber)
 
-
+    // Hook the actor in as a publisher of frames.
+    val playEngineProducer = ActorPublisher[Frame](playEngineActor)
+    playEngineProducer.subscribe(player)
   }
+
+  case class PlayerRequestMore(elements: Long)
+
+  case object PlayerDone
+
+  /**
+   * Takes UIControl, publishes Frames.
+   *
+   * @param file the file to play.
+   */
+  class PlayerProcessorActor(file: File) extends ActorPublisher[Frame] with ActorSubscriber /* [UIControl] */ {
+
+    private var currentPlayer: Option[ActorRef] = None
+
+    private var isPaused: Boolean = false
+
+    // Buffering (unbounded) if we get overloaded on input frames.
+    private val buf = collection.mutable.ArrayBuffer.empty[Frame]
+
+    override protected def requestStrategy: RequestStrategy = OneByOneRequestStrategy
+
+    override def receive: Actor.Receive = {
+      case ActorSubscriberMessage.OnNext(control: UIControl) =>
+        control match {
+          case Play =>
+            // Update state and kick off the stream
+            if (currentPlayer.isEmpty) {
+              kickOffFileProducer()
+            }
+            isPaused = false
+            requestMorePlayer()
+
+          case Pause =>
+            isPaused = true
+
+          case Stop =>
+            isPaused = false
+            currentPlayer.foreach(_ ! Stop)
+            currentPlayer = None
+        }
+
+      case ActorPublisherMessage.Request(elements) =>
+        if (! isPaused) {
+          if (tryEmptyBuffer()) {
+            requestMorePlayer()
+          }
+        }
+
+      case PlayerDone =>
+        kickOffFileProducer()
+        requestMorePlayer()
+
+      case f: Frame =>
+        if (totalDemand > 0) {
+          onNext(f)
+        } else {
+          buffer(f)
+        }
+    }
+
+    private def kickOffFileProducer(): Unit = {
+      val publisher = video.FFMpeg.readFile(file, context)
+      val consumerRef = context.actorOf(Props(new PlayerActor(self)))
+      currentPlayer = Some(consumerRef)
+      publisher.subscribe(ActorSubscriber(consumerRef))
+    }
+
+    private def requestMorePlayer(): Unit = {
+      if (totalDemand > 0) currentPlayer match {
+        case Some(player) =>
+          player ! PlayerRequestMore(totalDemand)
+        case None =>
+          ()
+      }
+    }
+
+    /** Buffers the given frame to be pushed to future clients later. */
+    private def buffer(f: Frame): Unit = {
+      buf.append(f)
+    }
+
+    private def tryEmptyBuffer(): Boolean = {
+      while (buf.nonEmpty && totalDemand > 0) {
+        onNext(buf.remove(0))
+      }
+      buf.isEmpty
+    }
+  }
+
+  /**
+   * Takes frames from the file publisher and forwards them to the PlayerProcessor.
+   *
+   * @param frameSubscriber the player processor.
+   */
+  class PlayerActor(frameSubscriber: ActorRef) extends ActorSubscriber /* [Frame] */ {
+    // All requests for more data handled by our 'consumer' actor.
+    override val requestStrategy = ZeroRequestStrategy
+
+    override def receive: Receive = {
+
+      case PlayerRequestMore(e) =>
+        request(e)
+
+      case video.Stop =>
+        cancel()
+
+      // Just delegate back/forth with the controlling 'consumer' actor.
+      case ActorSubscriberMessage.OnNext(frame: Frame) =>
+        frameSubscriber ! frame
+
+      case ActorSubscriberMessage.OnComplete =>
+        frameSubscriber ! PlayerDone
+    }
+  }
+
 }

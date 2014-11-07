@@ -1,12 +1,21 @@
 package video.imageUtils
 
-import scala.util.Random
 import java.awt.Color
 import java.awt.image.BufferedImage
+
+import scala.util.Random
 
 object ImageUtils {
 
   val rand = new Random()
+
+  def randWidth(width: Int): Int = {
+    rand.nextInt(width)
+  }
+
+  def randHeight(height: Int): Int = {
+    rand.nextInt(height)
+  }
 
   def randColor = {
     val r: Float = rand.nextFloat()

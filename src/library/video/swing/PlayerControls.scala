@@ -1,8 +1,8 @@
 package video
 package swing
 
-import akka.stream.actor.ActorProducer
-import org.reactivestreams.api.Producer
+import akka.stream.actor._
+import org.reactivestreams._
 import akka.actor.{ActorRefFactory, Props}
 import javax.swing.{JPanel,JButton}
 import java.awt.event.ActionListener
@@ -34,9 +34,9 @@ private[swing] class PlayerControls(actor: ActorRef) extends JPanel {
     override def actionPerformed(e: ActionEvent): Unit =
       actor ! StopButtonClicked
   })
-
 }
-private[swing] class PlayerControlsActor extends ActorProducer[UIControl] {  
+
+private[swing] class PlayerControlsActor extends ActorPublisher[UIControl] {
   sealed trait State
   case object Playing extends State
   case object Paused extends State
@@ -63,9 +63,9 @@ private[swing] class PlayerControlsActor extends ActorProducer[UIControl] {
 }
 object PlayerControls  {
   /** Construct a panel with player controls which produce UIControl events. */
-  def apply(factory: ActorRefFactory): (Producer[UIControl], JComponent) = {
+  def apply(factory: ActorRefFactory): (Publisher[UIControl], JComponent) = {
 	val actorRef = factory.actorOf(Props[PlayerControlsActor].withDispatcher("swing-dispatcher"), "video-controls")
     val component = new PlayerControls(actorRef)
-    ActorProducer(actorRef) -> component
+    ActorPublisher[UIControl](actorRef) -> component
   }
 }

@@ -1,9 +1,6 @@
 package video
 
-import org.reactivestreams.api.{
-Producer,
-Consumer
-}
+import org.reactivestreams._
 import javax.swing.{JComponent, JPanel, JFrame}
 import akka.actor.{ActorRef, ActorSystem}
 import java.awt.{BorderLayout, Component, GridLayout, Dimension}
@@ -30,10 +27,10 @@ class VideoPlayerDisplay(display: JComponent, controls: JComponent, width: Int, 
 
 object Display {
 
-  def create(system: ActorSystem): Consumer[Frame] = {
-    val (consumer, display) = swing.VideoPanel(system)
+  def create(system: ActorSystem): Subscriber[Frame] = {
+    val (subscriber, display) = swing.VideoPanel(system)
     createFrame(system, display)
-    consumer
+    subscriber
   }
 
   def createActorRef(system: ActorSystem): ActorRef = {
@@ -48,15 +45,15 @@ object Display {
     val frame = inFrame("Video Preview", display, system, width, height)
   }
 
-  def createPlayer(system: ActorSystem): (Producer[UIControl], Consumer[Frame]) = {
+  def createPlayer(system: ActorSystem): (Publisher[UIControl], Subscriber[Frame]) = {
     val (consumer, display) = swing.VideoPanel(system)
-    val (producer, controls) = swing.PlayerControls(system)
+    val (publisher, controls) = swing.PlayerControls(system)
 
     val width = DisplayProperties.getWidth(system)
     val height = DisplayProperties.getHeight(system)
     val player = new VideoPlayerDisplay(display, controls, width, height)
     inFrame("Video Player", player, system, width, height)
-    producer -> consumer
+    publisher -> consumer
   }
 
 

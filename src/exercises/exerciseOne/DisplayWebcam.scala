@@ -1,9 +1,6 @@
 package exerciseOne
 
 import akka.actor.ActorSystem
-import org.reactivestreams.api.{Consumer, Producer}
-import video.Frame
-
 
 object DisplayWebcam {
 
@@ -24,12 +21,13 @@ object DisplayWebcam {
 
 
     // Captures webcam photos.
-    val webcam: Producer[Frame] = video.webcam(system)
+    val webcamPublisher = video.webcam(system)
     // Captures screenshots
-    val screen: Producer[Frame] = video.screen(system)
+    val screenPublisher = video.screen(system)
     // Renders a video stream in a Swing UI.
-    val display: Consumer[Frame] = video.display(system)
+    val displayPublisher = video.display(system)
 
     // TODO - Your code here.
+    webcamPublisher.subscribe(displayPublisher)
   }
 }

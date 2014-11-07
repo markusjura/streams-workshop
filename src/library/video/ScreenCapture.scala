@@ -4,33 +4,33 @@ import java.awt.Rectangle
 import java.awt.image.BufferedImage
 import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRefFactory, Props}
-import akka.stream.actor.ActorProducer
-import org.reactivestreams.api.Producer
+import akka.stream.actor._
+import org.reactivestreams._
 
 
 object ScreenCapture {
 
   /** Creates a screen capture and pushes its stream events out.
     */
-  def readScreenCapture(system: ActorRefFactory): Producer[Frame] = {
-    val ref = system.actorOf(Props(new ScreenCaptureProducer))
-    ActorProducer(ref)
+  def readScreenCapture(system: ActorRefFactory): Publisher[Frame] = {
+    val ref = system.actorOf(Props(new ScreenCapturePublisher))
+    ActorPublisher(ref)
   }
 }
 
 
 
-/** An implementation of a producer that that can grab the screen. It will generate a stream of the captured video later.
+/** An implementation of a Publisher that that can grab the screen. It will generate a stream of the captured video later.
   *
   *  maxFrameCount is a temporary to limit the amount of frames capture since screen capture can be an infinite stream.
   *  Ideal would be to hook-up the start / stop stream events similar to what is used for controlling streaming video
   *
   * */
-private[video] class ScreenCaptureProducer extends ActorProducer[Frame] {
+private[video] class ScreenCapturePublisher extends ActorPublisher[Frame] {
 
   def receive: Receive = {
-    case ActorProducer.Request(e) => runGrabs()
-    case ActorProducer.Cancel => context stop self
+    case ActorPublisherMessage.Request(e) => runGrabs()
+    case ActorPublisherMessage.Cancel => context stop self
   }
 
   def runGrabs(): Unit =
@@ -64,7 +64,7 @@ private[video] class ScreenCaptureProducer extends ActorProducer[Frame] {
     if (sourceImage.getType() == targetType) sourceImage
     else {
       val newImage = new BufferedImage(sourceImage.getWidth(),
-        sourceImage.getHeight(), targetType);
+        sourceImage.getHeight(), targetType)
       newImage.getGraphics().drawImage(sourceImage, 0, 0, null)
       newImage
     }

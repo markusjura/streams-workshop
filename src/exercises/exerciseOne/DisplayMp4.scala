@@ -1,8 +1,8 @@
 package exerciseOne
 
 import java.io.File
+
 import akka.actor.ActorSystem
-import org.reactivestreams.api.{Consumer, Producer}
 
 
 object DisplayMp4 {
@@ -26,6 +26,9 @@ object DisplayMp4 {
     // play it in the UI display.
 
     // TODO - Your code here.
+    val frames = video.FFMpeg.readFile(mp4, system)
+    val display = video.display(system)
 
+    frames.subscribe(display)
   }
 }

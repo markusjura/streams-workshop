@@ -2,35 +2,46 @@ package video
 package file
 
 import java.io.File
-import org.reactivestreams.spi.{Publisher, Subscriber, Subscription}
-import org.reactivestreams.api.Consumer
-import akka.actor.{ActorSystem, Actor, Props, ActorRef}
-import com.xuggle.mediatool.ToolFactory
-import com.xuggle.mediatool.IMediaWriter
-import java.util.concurrent.TimeUnit
+
+import akka.actor.{ActorRefFactory, Props}
+import akka.stream.actor._
+import com.xuggle.mediatool.{IMediaWriter, ToolFactory}
 import com.xuggle.xuggler.IRational
-import akka.actor.ActorRefFactory
-import stream.actor.ActorConsumer
+import org.reactivestreams._
 
 
+private[video] class FFMpegFileSubscriberWorker(file: File,
+                                                width: Int,
+                                                height: Int,
+                                                frameRate: IRational = IRational.make(3, 1))
+  extends ActorSubscriber {
 
-private[video] class FFMpegFileConsumerWorker(file: File, width: Int, height: Int, frameRate: IRational = IRational.make(3, 1)) extends ActorConsumer {
-  override protected val requestStrategy = ActorConsumer.OneByOneRequestStrategy
+  override protected val requestStrategy = OneByOneRequestStrategy
+
   private val writer: IMediaWriter = ToolFactory.makeWriter(file.getAbsolutePath)
+
   writer.addVideoStream(0, 0, frameRate, width, height)
+
   override def receive: Receive = {
-    case ActorConsumer.OnNext(frame: Frame) =>
+    case ActorSubscriberMessage.OnNext(frame: Frame) =>
       writer.encodeVideo(0, frame.image, frame.timeStamp, frame.timeUnit)
-    case ActorConsumer.OnComplete =>
+    case ActorSubscriberMessage.OnComplete =>
       writer.close()
-    // Destory bad files
-    case ActorConsumer.OnError(e) =>
+    // Destroy bad files
+    case ActorSubscriberMessage.OnError(e) =>
       writer.close()
       file.delete()
   }
 }
 
-private[video] object FFMpegFileConsumerWorker {
-  def apply(factory: ActorRefFactory, file: File, width: Int, height: Int, frameRate: IRational = IRational.make(3, 1)): Consumer[Frame] =
-    ActorConsumer(factory.actorOf(Props(new FFMpegFileConsumerWorker(file, width, height, frameRate))))
+private[video] object FFMpegFileSubscriberWorker {
+
+  def apply(factory: ActorRefFactory,
+            file: File,
+            width: Int,
+            height: Int,
+            frameRate: IRational = IRational.make(3, 1)): Subscriber[Frame] = {
+
+    ActorSubscriber(factory.actorOf(Props(new FFMpegFileSubscriberWorker(file, width, height, frameRate))))
+  }
 }

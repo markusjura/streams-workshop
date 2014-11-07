@@ -1,11 +1,12 @@
 package exerciseFour
 
-import akka.actor.ActorSystem
-import akka.stream.MaterializerSettings
-import video.Frame
-import org.reactivestreams.api.Producer
 import java.io.File
-import akka.stream.scaladsl.Flow
+
+import akka.actor.ActorSystem
+import akka.stream.scaladsl._
+import akka.stream.{FlowMaterializer, MaterializerSettings}
+import org.reactivestreams.{Publisher, Subscriber}
+import video.Frame
 
 object MovementVideo {
 
@@ -16,7 +17,7 @@ object MovementVideo {
    */
   def main(args: Array[String]): Unit = {
     implicit val system = ActorSystem()
-    val settings = MaterializerSettings()
+    implicit val materializer = FlowMaterializer()
 
     // ------------
     // EXERCISE 4.1
@@ -27,9 +28,13 @@ object MovementVideo {
     val mp4 = new File("goose.mp4")
 
     //Create a Producer from the file system
-    val fileProducer: Producer[Frame] = video.FFMpeg.readFile(mp4, system)
-    val flow = Flow(fileProducer)
+    val filePublisher: Publisher[Frame] = video.FFMpeg.readFile(mp4, system)
+    val source = Source(filePublisher)
+    val videoSubscriber: Subscriber[Frame] = video.Display.create(system)
+    val sink = Sink(videoSubscriber)
 
-    // TODO - Your code here to consume and manipulate the video stream in a flow dsl.
+    source.map { frame =>
+      video.frameUtil.grayscale(frame)
+    }.runWith(sink)
   }
 }
