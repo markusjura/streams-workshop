@@ -2,7 +2,7 @@ package exerciseFive
 
 import java.io.File
 
-import akka.actor.{ActorRef, Actor, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.stream.FlowMaterializer
 import akka.stream.actor._
 import org.reactivestreams._
@@ -52,8 +52,8 @@ object VideoPlayer {
 
     private var isPaused: Boolean = false
 
-    // Buffering (unbounded) if we get overloaded on input frames.
-    private val buf = collection.mutable.ArrayBuffer.empty[Frame]
+    // Buffering if we get overloaded on input frames.  The blocking here doesn't matter.
+    private val buf = new java.util.concurrent.ArrayBlockingQueue[Frame](100)
 
     override protected def requestStrategy: RequestStrategy = OneByOneRequestStrategy
 
@@ -114,12 +114,12 @@ object VideoPlayer {
 
     /** Buffers the given frame to be pushed to future clients later. */
     private def buffer(f: Frame): Unit = {
-      buf.append(f)
+      buf.add(f)
     }
 
     private def tryEmptyBuffer(): Boolean = {
-      while (buf.nonEmpty && totalDemand > 0) {
-        onNext(buf.remove(0))
+      while (!buf.isEmpty && totalDemand > 0) {
+        onNext(buf.take())
       }
       buf.isEmpty
     }

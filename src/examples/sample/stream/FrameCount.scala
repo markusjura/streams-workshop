@@ -20,7 +20,7 @@ object FrameCount {
     import scala.concurrent.ExecutionContext.Implicits.global
 
     val videoPublisher: Publisher[Frame] = video.FFMpeg.readFile(new File("goose.mp4"), system)
-    val videoSource = PublisherSource(videoPublisher)
+    val videoSource = Source(videoPublisher)
     videoSource.fold(0) { (count, frame) =>
       val nextCount = count + 1
       System.out.print(f"\rFRAME ${nextCount}%05d")
