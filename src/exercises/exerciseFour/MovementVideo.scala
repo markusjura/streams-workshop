@@ -29,12 +29,6 @@ object MovementVideo {
 
     //Create a Producer from the file system
     val filePublisher: Publisher[Frame] = video.FFMpeg.readFile(mp4, system)
-    val source = Source(filePublisher)
     val videoSubscriber: Subscriber[Frame] = video.Display.create(system)
-    val sink = Sink(videoSubscriber)
-
-    source.map { frame =>
-      video.frameUtil.grayscale(frame)
-    }.runWith(sink)
   }
 }

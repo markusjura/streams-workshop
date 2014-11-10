@@ -21,27 +21,7 @@ import video.imageUtils.{CircleProperties, ImageUtils}
 // See video.imageUtils.ImageUtils.createBufferedImage
 class CircleProducer extends ActorPublisher[Frame] {
 
-  override def receive: Receive = {
-
-    case ActorPublisherMessage.Request(elements) =>
-      while (totalDemand > 0) {
-        val circleProperties = generateCircleProperties(80, 80)
-        val bufferedImage = video.imageUtils.ImageUtils.createBufferedImage(80, 80, circleProperties)
-        val frame = Frame(image = bufferedImage, timeStamp = 1L, timeUnit = TimeUnit.SECONDS)
-
-        onNext(frame)
-      }
-
-    case ActorPublisherMessage.Cancel =>
-      context stop self
-  }
-
-  def generateCircleProperties(screenWidth:Int, screenHeight:Int): CircleProperties = {
-    val width = ImageUtils.randWidth(screenWidth)
-    val height = ImageUtils.randHeight(screenHeight)
-    val randColor = ImageUtils.randColor
-    CircleProperties(width = width, height = height, color = randColor)
-  }
+  override def receive: Receive = ???
 
 }
 
@@ -57,12 +37,8 @@ object CircleProducer {
     // ActorSystem represents the "engine" we run in, including threading configuration and concurrency semantics.
     val system = ActorSystem()
 
-    // Fill in the code necessary to construct a UI to consume and display the Frames produced
-    // by the Circle producer.
-
     val display = video.display(system)
-
-    val circleProducer = system.actorOf(Props[CircleProducer], "circleProducer")
-    ActorPublisher(circleProducer).subscribe(display)
+    // TODO Fill in the code necessary to construct a UI to consume and display the Frames produced
+    // by the Circle producer.
   }
 }

@@ -25,10 +25,9 @@ object DisplayMp4 {
     // Fill in the code necessary to construct a UI display and read the mp4 file and
     // play it in the UI display.
 
-    // TODO - Your code here.
     val frames = video.FFMpeg.readFile(mp4, system)
     val display = video.display(system)
 
-    frames.subscribe(display)
+    // TODO - Your code here.
   }
 }

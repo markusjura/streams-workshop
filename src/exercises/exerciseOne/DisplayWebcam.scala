@@ -28,6 +28,5 @@ object DisplayWebcam {
     val displayPublisher = video.display(system)
 
     // TODO - Your code here.
-    webcamPublisher.subscribe(displayPublisher)
   }
 }
