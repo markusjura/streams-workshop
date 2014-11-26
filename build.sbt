@@ -1,4 +1,4 @@
-name := """stream-workshop"""
+name := "stream-talk"
 
 version := "1.0"
 

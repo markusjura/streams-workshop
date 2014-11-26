@@ -16,7 +16,7 @@ import akka.stream.actor.{ActorPublisherMessage, ActorPublisher}
 case class FFMpegError(raw: IError) extends Exception(raw.getDescription)
 
 /** An actor which reads the given file on demand. */
-private[video] class FFMpegPublisher(file: File) extends ActorPublisher[Frame] {
+class FFMpegPublisher(file: File) extends ActorPublisher[Frame] {
   private var closed: Boolean = false
   private var frameCount: Long = 0L
   
